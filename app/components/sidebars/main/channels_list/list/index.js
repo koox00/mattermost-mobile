@@ -1,6 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
-
 import {connect} from 'react-redux';
 
 import {DeviceTypes, ViewTypes} from '@constants';
@@ -10,6 +9,7 @@ import {
     getSortedFavoriteChannelIds,
     getSortedUnreadChannelIds,
     getOrderedChannelIds,
+    getChannelsByCategoryForCurrentTeam,
 } from '@mm-redux/selectors/entities/channels';
 import {getConfig, getLicense, hasNewPermissions} from '@mm-redux/selectors/entities/general';
 import {getTheme, getFavoritesPreferences, getSidebarPreferences, isCollapsedThreadsEnabled} from '@mm-redux/selectors/entities/preferences';
@@ -19,6 +19,7 @@ import {getCurrentUserId, getCurrentUserRoles} from '@mm-redux/selectors/entitie
 import {showCreateOption} from '@mm-redux/utils/channel_utils';
 import {memoizeResult} from '@mm-redux/utils/helpers';
 import {isAdmin as checkIsAdmin, isSystemAdmin as checkIsSystemAdmin} from '@mm-redux/utils/user_utils';
+import {shouldShowLegacySidebar} from '@utils/categories';
 
 import List from './list';
 
@@ -51,6 +52,7 @@ function mapStateToProps(state) {
         true, // The mobile app should always display the Unreads section regardless of user settings (MM-13420)
         sidebarPrefs.favorite_at_top === 'true' && favoriteChannelIds.length,
     ));
+    const channelsByCategory = getChannelsByCategoryForCurrentTeam(state);
 
     let canJoinPublicChannels = true;
     if (hasNewPermissions(state)) {
@@ -62,15 +64,19 @@ function mapStateToProps(state) {
     const canCreatePublicChannels = showCreateOption(state, config, license, currentTeamId, General.OPEN_CHANNEL, isAdmin, isSystemAdmin);
     const canCreatePrivateChannels = showCreateOption(state, config, license, currentTeamId, General.PRIVATE_CHANNEL, isAdmin, isSystemAdmin);
 
+    const showLegacySidebar = shouldShowLegacySidebar(config);
+
     return {
+        theme: getTheme(state),
         canJoinPublicChannels,
         canCreatePrivateChannels,
         canCreatePublicChannels,
         collapsedThreadsEnabled,
-        favoriteChannelIds,
-        theme: getTheme(state),
         unreadChannelIds,
+        favoriteChannelIds,
         orderedChannelIds,
+        channelsByCategory,
+        showLegacySidebar,
     };
 }
 

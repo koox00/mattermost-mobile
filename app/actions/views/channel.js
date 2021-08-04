@@ -1,6 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+/* eslint-disable max-lines */
+
 import {batchActions} from 'redux-batched-actions';
 
 import {lastChannelIdForTeam, loadSidebarDirectMessagesProfiles} from '@actions/helpers/channels';
@@ -10,6 +12,7 @@ import {ViewTypes} from '@constants';
 import {INSERT_TO_COMMENT, INSERT_TO_DRAFT} from '@constants/post_draft';
 import {ChannelTypes, RoleTypes, GroupTypes} from '@mm-redux/action_types';
 import {fetchAppBindings} from '@mm-redux/actions/apps';
+import {fetchMyCategories} from '@mm-redux/actions/channel_categories';
 import {
     fetchMyChannelsAndMembers,
     getChannelByName,
@@ -26,7 +29,7 @@ import {
     getMyChannelMemberships,
     isManuallyUnread,
 } from '@mm-redux/selectors/entities/channels';
-import {getLicense} from '@mm-redux/selectors/entities/general';
+import {getConfig, getLicense} from '@mm-redux/selectors/entities/general';
 import {getPostIdsInChannel} from '@mm-redux/selectors/entities/posts';
 import {isCollapsedThreadsEnabled} from '@mm-redux/selectors/entities/preferences';
 import {getTeamByName as selectTeamByName, getCurrentTeam, getTeamMemberships} from '@mm-redux/selectors/entities/teams';
@@ -38,6 +41,7 @@ import {getChannelReachable} from '@selectors/channel';
 import {getViewingGlobalThreads} from '@selectors/threads';
 import telemetry, {PERF_MARKERS} from '@telemetry';
 import {appsEnabled} from '@utils/apps';
+import {shouldShowLegacySidebar} from '@utils/categories';
 import {isDirectChannelVisible, isGroupChannelVisible, getChannelSinceValue, privateChannelJoinPrompt} from '@utils/channels';
 import {isPendingPost} from '@utils/general';
 
@@ -716,6 +720,7 @@ function loadGroupData(isReconnect = false) {
 export function loadChannelsForTeam(teamId, skipDispatch = false, isReconnect = false) {
     return async (dispatch, getState) => {
         const state = getState();
+        const config = getConfig(state);
         const currentUserId = getCurrentUserId(state);
         const lastConnectAt = state.websocket?.lastConnectAt || 0;
         const data = {
@@ -743,6 +748,10 @@ export function loadChannelsForTeam(teamId, skipDispatch = false, isReconnect = 
                         return {error: hasChannelsLoaded ? null : err};
                     }
                 }
+            }
+
+            if (shouldShowLegacySidebar(config)) {
+                await dispatch(fetchMyCategories(teamId));
             }
 
             if (data.channels) {

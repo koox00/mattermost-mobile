@@ -1,5 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
+/* eslint-disable max-lines */
 
 import PropTypes from 'prop-types';
 import React, {PureComponent} from 'react';
@@ -23,6 +24,7 @@ import {DeviceTypes, ListTypes, NavigationTypes} from '@constants';
 import {SidebarSectionTypes} from '@constants/view';
 import {debounce} from '@mm-redux/actions/helpers';
 import {General} from '@mm-redux/constants';
+import {CategoryTypes} from '@mm-redux/constants/channel_categories';
 import EventEmitter from '@mm-redux/utils/event_emitter';
 import BottomSheet from '@utils/bottom_sheet';
 import {t} from '@utils/i18n';
@@ -38,16 +40,19 @@ let UnreadIndicator = null;
 export default class List extends PureComponent {
     static propTypes = {
         testID: PropTypes.string,
+        styles: PropTypes.object.isRequired,
+        theme: PropTypes.object.isRequired,
+        onSelectChannel: PropTypes.func.isRequired,
+        onCollapseCategory: PropTypes.func.isRequired,
         canJoinPublicChannels: PropTypes.bool.isRequired,
         canCreatePrivateChannels: PropTypes.bool.isRequired,
         canCreatePublicChannels: PropTypes.bool.isRequired,
         collapsedThreadsEnabled: PropTypes.bool,
-        favoriteChannelIds: PropTypes.array.isRequired,
-        onSelectChannel: PropTypes.func.isRequired,
         unreadChannelIds: PropTypes.array.isRequired,
-        styles: PropTypes.object.isRequired,
-        theme: PropTypes.object.isRequired,
+        favoriteChannelIds: PropTypes.array.isRequired,
         orderedChannelIds: PropTypes.array.isRequired,
+        channelsByCategory: PropTypes.array,
+        showLegacySidebar: PropTypes.bool.isRequired,
     };
 
     static contextTypes = {
@@ -90,11 +95,13 @@ export default class List extends PureComponent {
             canCreatePrivateChannels,
             orderedChannelIds,
             unreadChannelIds,
+            channelsByCategory,
         } = prevProps;
 
         if (this.props.canCreatePrivateChannels !== canCreatePrivateChannels ||
             this.props.unreadChannelIds !== unreadChannelIds ||
-            this.props.orderedChannelIds !== orderedChannelIds) {
+            this.props.orderedChannelIds !== orderedChannelIds ||
+            this.props.channelsByCategory !== channelsByCategory) {
             this.setSections(this.buildSections(this.props));
         }
 
@@ -166,7 +173,13 @@ export default class List extends PureComponent {
     buildSections = (props) => {
         const {
             orderedChannelIds,
+            channelsByCategory,
+            showLegacySidebar,
         } = props;
+
+        if (!showLegacySidebar) {
+            return this.buildCategorySections(channelsByCategory);
+        }
 
         const sections = orderedChannelIds.map((s) => {
             return {
@@ -351,6 +364,99 @@ export default class List extends PureComponent {
         );
     };
 
+    renderCategoryItem = ({item, section}) => {
+        if (section.collapsed) {
+            return null;
+        }
+
+        const {testID, favoriteChannelIds, unreadChannelIds} = this.props;
+        const channelItemTestID = `${testID}.channel_item`;
+
+        return (
+            <ChannelItem
+                testID={channelItemTestID}
+                channelId={item}
+                isUnread={unreadChannelIds.includes(item)}
+                isFavorite={favoriteChannelIds.includes(item)}
+                onSelectChannel={this.onSelectChannel}
+            />
+        );
+    };
+
+    renderCategoryHeader = ({section}) => {
+        const {styles, onCollapseCategory} = this.props;
+        const {action, id, name, collapsed, type} = section;
+        const {intl} = this.context;
+        const anchor = (id === 'sidebar.types.recent' || id === 'mobile.channel_list.channels');
+
+        const title = () => {
+            switch (type) {
+            case CategoryTypes.UNREADS:
+                return intl.formatMessage({id: 'mobile.channel_list.unreads', defaultMessage: 'unreads'}).toUpperCase();
+            case CategoryTypes.FAVORITES:
+                return intl.formatMessage({id: 'sidebar.favorite', defaultMessage: 'favorites'}).toUpperCase();
+            case CategoryTypes.CHANNELS:
+                return intl.formatMessage({id: 'mobile.channel_list.channels', defaultMessage: 'channels'}).toUpperCase();
+            case CategoryTypes.DIRECT_MESSAGES:
+                return intl.formatMessage({id: 'sidebar.direct', defaultMessage: 'direct messages'}).toUpperCase();
+            default:
+                return name.toUpperCase();
+            }
+        };
+
+        const header = (
+            <View style={styles.titleContainer}>
+                {type !== 'unreads' &&
+                    <CompassIcon
+                        name={collapsed ? 'chevron-right' : 'chevron-down'}
+                        ref={anchor ? this.combinedActionsRef : null}
+                        style={styles.chevron}
+                    />}
+                <Text style={styles.title}>
+                    {title()}
+                </Text>
+                <View style={styles.separatorContainer}>
+                    <Text> </Text>
+                </View>
+                {action && this.renderSectionAction(styles, action, anchor, id)}
+            </View>
+        );
+
+        if (type === SidebarSectionTypes.UNREADS) {
+            return header;
+        }
+
+        return (
+            <TouchableHighlight onPress={() => onCollapseCategory(id, !collapsed)}>
+                {header}
+            </TouchableHighlight>
+        );
+    }
+
+    buildCategorySections = (channelsByCategory) => {
+        const data = [];
+
+        // Start with Unreads
+        data.push({
+            id: 'unreads',
+            name: 'UNREADS',
+            data: this.props.unreadChannelIds,
+            type: CategoryTypes.UNREADS,
+        });
+
+        // Add the rest
+        channelsByCategory.map((cat) => {
+            return data.push({
+                name: cat.display_name,
+                action: cat.type === 'direct_messages' ? this.goToDirectMessages : this.showCreateChannelOptions,
+                data: cat.channel_ids,
+                ...cat,
+            });
+        });
+
+        return data;
+    }
+
     scrollToTop = () => {
         //eslint-disable-next-line no-underscore-dangle
         if (this.listRef?._wrapperListRef) {
@@ -400,7 +506,7 @@ export default class List extends PureComponent {
     };
 
     render() {
-        const {collapsedThreadsEnabled, styles, testID, theme} = this.props;
+        const {testID, styles, theme, channelsByCategory, showLegacySidebar, collapsedThreadsEnabled} = this.props;
         const {sections, showIndicator} = this.state;
 
         const paddingBottom = this.listContentPadding();
@@ -422,8 +528,8 @@ export default class List extends PureComponent {
                     sections={sections}
                     contentContainerStyle={{paddingBottom}}
                     removeClippedSubviews={Platform.OS === 'android'}
-                    renderItem={this.renderItem}
-                    renderSectionHeader={this.renderSectionHeader}
+                    renderItem={channelsByCategory && channelsByCategory.length && !showLegacySidebar ? this.renderCategoryItem : this.renderItem}
+                    renderSectionHeader={channelsByCategory && channelsByCategory.length && !showLegacySidebar ? this.renderCategoryHeader : this.renderSectionHeader}
                     keyboardShouldPersistTaps={'always'}
                     keyExtractor={this.keyExtractor}
                     onViewableItemsChanged={this.updateUnreadIndicators}
