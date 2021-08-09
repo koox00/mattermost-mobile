@@ -422,7 +422,7 @@ export default class List extends PureComponent {
             </View>
         );
 
-        if (type === SidebarSectionTypes.UNREADS) {
+        if (type === CategoryTypes.UNREADS) {
             return header;
         }
 
@@ -437,12 +437,14 @@ export default class List extends PureComponent {
         const data = [];
 
         // Start with Unreads
-        data.push({
-            id: 'unreads',
-            name: 'UNREADS',
-            data: this.props.unreadChannelIds,
-            type: CategoryTypes.UNREADS,
-        });
+        if (this.props.unreadChannelIds.length) {
+            data.push({
+                id: 'unreads',
+                name: 'UNREADS',
+                data: this.props.unreadChannelIds,
+                type: CategoryTypes.UNREADS,
+            });
+        }
 
         // Add the rest
         channelsByCategory.map((cat) => {
@@ -506,7 +508,7 @@ export default class List extends PureComponent {
     };
 
     render() {
-        const {testID, styles, theme, channelsByCategory, showLegacySidebar, collapsedThreadsEnabled} = this.props;
+        const {testID, styles, theme, showLegacySidebar, collapsedThreadsEnabled} = this.props;
         const {sections, showIndicator} = this.state;
 
         const paddingBottom = this.listContentPadding();
@@ -528,8 +530,8 @@ export default class List extends PureComponent {
                     sections={sections}
                     contentContainerStyle={{paddingBottom}}
                     removeClippedSubviews={Platform.OS === 'android'}
-                    renderItem={channelsByCategory && channelsByCategory.length && !showLegacySidebar ? this.renderCategoryItem : this.renderItem}
-                    renderSectionHeader={channelsByCategory && channelsByCategory.length && !showLegacySidebar ? this.renderCategoryHeader : this.renderSectionHeader}
+                    renderItem={showLegacySidebar ? this.renderItem : this.renderCategoryItem}
+                    renderSectionHeader={showLegacySidebar ? this.renderSectionHeader : this.renderCategoryHeader}
                     keyboardShouldPersistTaps={'always'}
                     keyExtractor={this.keyExtractor}
                     onViewableItemsChanged={this.updateUnreadIndicators}

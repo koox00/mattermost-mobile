@@ -750,7 +750,7 @@ export function loadChannelsForTeam(teamId, skipDispatch = false, isReconnect = 
                 }
             }
 
-            if (shouldShowLegacySidebar(config)) {
+            if (!shouldShowLegacySidebar(config)) {
                 await dispatch(fetchMyCategories(teamId));
             }
 
