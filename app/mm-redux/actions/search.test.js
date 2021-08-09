@@ -56,12 +56,11 @@ describe('Actions.Search', () => {
         nock(Client4.getChannelsRoute()).
             get(`/${TestHelper.basicChannel.id}/members/me`).
             reply(201, {user_id: TestHelper.basicUser.id, channel_id: TestHelper.basicChannel.id});
+
         await Actions.searchPosts(TestHelper.basicTeam.id, search1)(dispatch, getState);
 
         const state = getState();
         const {recent, results} = state.entities.search;
-
-        console.log('------- Search results', state.entities);
 
         const {posts} = state.entities.posts;
         const current = state.entities.search.current[TestHelper.basicTeam.id];
