@@ -437,7 +437,7 @@ describe('legacyMakeFilterAutoclosedDMs', () => {
     test('should show a DM channel with a deactivated user if its the current channel', () => {
         const filterAutoclosedDMs = Selectors.legacyMakeFilterAutoclosedDMs(() => cutoff);
 
-        const otherUser = {id: 'otherUser', delete_at: cutoff + 2};
+        const otherUser = {id: 'otherUser', delete_at: cutoff - 2};
         const dmChannel = {id: 'dmChannel', name: `${currentUser.id}__${otherUser.id}`, type: General.DM_CHANNEL};
 
         const state = mergeObjects(baseState, {
@@ -783,6 +783,9 @@ describe('makeFilterManuallyClosedDMs', () => {
             },
             users: {
                 currentUserId: currentUser.id,
+            },
+            general: {
+                config: {},
             },
         },
     };
